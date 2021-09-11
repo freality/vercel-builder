@@ -14,6 +14,7 @@ import {
   runNpmInstall,
   runPackageJsonScript,
 } from "@vercel/build-utils";
+
 import type { Route } from "@vercel/routing-utils";
 import consola from "consola";
 import fs from "fs-extra";
@@ -21,6 +22,8 @@ import resolveFrom from "resolve-from";
 import { gte, gt } from "semver";
 import { update as updaterc } from "rc9";
 import { hasProtocol } from "ufo";
+import spawn from 'cross-spawn';
+import { SpawnOptions } from 'child_process';
 
 import {
   endStep,
@@ -35,6 +38,7 @@ import {
   startStep,
   validateEntrypoint,
 } from "./utils";
+
 import {
   prepareTypescriptEnvironment,
   compileTypescriptBuildFiles,
@@ -55,6 +59,48 @@ interface NuxtBuilderConfig {
   includeFiles?: string[] | string;
   serverFiles?: string[];
   internalServer?: boolean;
+}
+
+function spawnAsync(
+  command: string,
+  args: string[],
+  cwd: string,
+  opts: SpawnOptions = {}
+) {
+  return new Promise<void>((resolve, reject) => {
+    const stderrLogs: Buffer[] = [];
+    opts = { stdio: 'inherit', cwd, ...opts };
+    const child = spawn(command, args, opts);
+
+    if (opts.stdio === 'pipe' && child.stderr) {
+      child.stderr.on('data', data => stderrLogs.push(data));
+    }
+
+    child.on('error', reject);
+    child.on('close', (code, signal) => {
+      if (code === 0) {
+        return resolve();
+      }
+
+      const errorLogs = stderrLogs.map(line => line.toString()).join('');
+      if (opts.stdio !== 'inherit') {
+        reject(new Error(`Exited with ${code || signal}\n${errorLogs}`));
+      } else {
+        reject(new Error(`Exited with ${code || signal}`));
+      }
+    });
+  });
+}
+
+async function setYarnConfig (name: string, value: unknown, destPath: string, commandArgs: string[] = [], spawnOpts?: SpawnOptions) {
+  const args = ['config', 'set', name, value].concat(commandArgs) as string[]
+  const opts = spawnOpts || { env: process.env };
+  await spawnAsync(
+    'yarn',
+    args,
+    destPath,
+    opts
+  );
 }
 
 export async function build(
@@ -167,17 +213,19 @@ export async function build(
   await prepareNodeModules(entrypointPath, "node_modules_dev");
 
   // Install all dependencies
+  const cmdOpts = { ...spawnOpts, env: { ...spawnOpts.env, NODE_ENV: "development" } }
+  // set v.1 --modules-folder
+  // await setYarnConfig('pnpDataPath', modulesPath, cmdOpts, meta)
+  // set v.1 --cache-folder
+  await setYarnConfig('cacheFolder', yarnCachePath, entrypointPath, cmdOpts, meta)
+  // set v.1 --production=false
+
   await runNpmInstall(
     entrypointPath,
     [
-      "--prefer-offline",
-      "--frozen-lockfile",
-      "--non-interactive",
-      // '--production=false',
-      `--modules-folder=${modulesPath}`,
-      `--cache-folder=${yarnCachePath}`,
+      "--immutable", // same as v.1 --frozen-lockfile
     ],
-    { ...spawnOpts, env: { ...spawnOpts.env, NODE_ENV: "development" } },
+    cmdOpts,
     meta
   );
 
