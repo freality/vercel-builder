@@ -213,11 +213,11 @@ export async function build(
   await prepareNodeModules(entrypointPath, "node_modules_dev");
 
   // Install all dependencies
-  const cmdOpts = { ...spawnOpts, env: { ...spawnOpts.env, NODE_ENV: "development" } }
+  const spwnOpts = { ...spawnOpts, env: { ...spawnOpts.env, NODE_ENV: "development" } }
   // set v.1 --modules-folder
   // await setYarnConfig('pnpDataPath', modulesPath, cmdOpts, meta)
   // set v.1 --cache-folder
-  await setYarnConfig('cacheFolder', yarnCachePath, entrypointPath, cmdOpts, meta)
+  await setYarnConfig('cacheFolder', yarnCachePath, entrypointPath, [], spwnOpts)
   // set v.1 --production=false
 
   await runNpmInstall(
@@ -225,7 +225,7 @@ export async function build(
     [
       "--immutable", // same as v.1 --frozen-lockfile
     ],
-    cmdOpts,
+    spwnOpts,
     meta
   );
 
