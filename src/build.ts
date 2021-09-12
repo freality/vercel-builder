@@ -213,7 +213,7 @@ export async function build(
   await prepareNodeModules(entrypointPath, "node_modules_dev");
 
   // Install all dependencies
-  const spwnOpts = { ...spawnOpts, env: { ...spawnOpts.env, NODE_ENV: "development" } }
+  let spwnOpts = { ...spawnOpts, env: { ...spawnOpts.env, NODE_ENV: "development" } }
   // set v.1 --modules-folder
   // await setYarnConfig('pnpDataPath', modulesPath, cmdOpts, meta)
   // set v.1 --cache-folder
@@ -319,7 +319,7 @@ export async function build(
   const nuxtDep = preparePkgForProd(pkg);
   await fs.writeJSON("package.json", pkg);
 
-  const spwnOpts = {
+  spwnOpts = {
     ...spawnOpts,
     env: {
       ...spawnOpts.env,
