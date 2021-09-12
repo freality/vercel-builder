@@ -319,23 +319,20 @@ export async function build(
   const nuxtDep = preparePkgForProd(pkg);
   await fs.writeJSON("package.json", pkg);
 
+  const spwnOpts = {
+    ...spawnOpts,
+    env: {
+      ...spawnOpts.env,
+      NPM_ONLY_PRODUCTION: "true",
+    },
+  }
+
   await runNpmInstall(
     entrypointPath,
     [
-      "--prefer-offline",
-      "--pure-lockfile",
-      "--non-interactive",
-      "--production=true",
-      `--modules-folder=${modulesPath}`,
-      `--cache-folder=${yarnCachePath}`,
+      "--immutable", // same as v.1 --frozen-lockfile
     ],
-    {
-      ...spawnOpts,
-      env: {
-        ...spawnOpts.env,
-        NPM_ONLY_PRODUCTION: "true",
-      },
-    },
+    spwnOpts,
     meta
   );
 
